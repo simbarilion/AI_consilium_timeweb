@@ -2,13 +2,11 @@ DirectoryIndex index.php
 Options -Indexes
 
 RewriteEngine On
-RewriteBase /
 
 RewriteRule ^api/consilium/?$ api/consult.php [L,QSA]
 RewriteRule ^api/health/?$ api/health.php [L,QSA]
-RewriteRule ^app\.js$ public/app.js [L]
-RewriteRule ^styles\.css$ public/styles.css [L]
 
 <IfModule mod_deflate.c>
-  SetEnvIfNoCase Request_URI ^/api/consilium no-gzip dont-vary
+  SetEnvIfNoCase Request_URI consult\.php no-gzip dont-vary
+  SetEnvIfNoCase Request_URI /api/consilium no-gzip dont-vary
 </IfModule>

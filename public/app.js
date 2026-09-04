@@ -216,7 +216,8 @@ async function start() {
   $("#consultation").scrollIntoView({behavior:"smooth", block:"start"});
 
   try {
-    const response = await fetch("/api/consilium", {
+    const apiUrl = document.documentElement.getAttribute("data-api") || "api/consult.php";
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {"Content-Type":"application/json", "Accept":"text/event-stream"},
       body: JSON.stringify({idea})

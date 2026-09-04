@@ -347,7 +347,13 @@ def consilium():
 
 @app.get("/")
 def index():
-    return send_from_directory(PUBLIC_DIR, "index.html")
+    html_path = os.path.join(PUBLIC_DIR, "index.html")
+    with open(html_path, encoding="utf-8") as fh:
+        html = fh.read()
+    html = html.replace('href="public/styles.css"', 'href="styles.css"')
+    html = html.replace('src="public/app.js"', 'src="app.js"')
+    html = html.replace('data-api="api/consult.php"', 'data-api="/api/consilium"')
+    return Response(html, mimetype="text/html; charset=utf-8")
 
 @app.get("/<path:path>")
 def static_files(path: str):
