@@ -57,6 +57,31 @@ $ctx = consilium_build_context('идея', array(
 ));
 check(strpos($ctx, 'ИДЕЯ ПОЛЬЗОВАТЕЛЯ') !== false && strpos($ctx, 'hello') !== false, 'build context');
 
+$reasonChunk = array(
+    'choices' => array(
+        array(
+            'delta' => array(
+                'reasoning_content' => 'думаю ',
+                'content' => null,
+            ),
+        ),
+    ),
+);
+check(consilium_chunk_text($reasonChunk) === 'думаю ', 'chunk text reads reasoning_content');
+
+$sseFull = '';
+$sseReason = '';
+consilium_apply_sse_line(
+    'data: {"choices":[{"delta":{"reasoning_content":"план"}}]}',
+    $sseFull,
+    $sseReason,
+    null
+);
+check($sseFull === '' && $sseReason === 'план', 'sse keeps reasoning aside from content');
+
+$rawJson = '{"choices":[{"message":{"role":"assistant","content":null,"reasoning_content":"итог"}}]}';
+check(consilium_text_from_raw($rawJson) === 'итог', 'raw json falls back to reasoning_content');
+
 if ($failed > 0) {
     echo "\n$failed failed\n";
     exit(1);

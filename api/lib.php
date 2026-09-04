@@ -107,7 +107,126 @@ function consilium_clean_json($text)
     return $data;
 }
 
-function consilium_chat(array $agent, $system, $user, $stream, $onDelta = null)
+function consilium_part_text($part)
+{
+    if (is_string($part)) {
+        return $part;
+    }
+    if (!is_array($part)) {
+        return '';
+    }
+    if (isset($part['text']) && is_string($part['text'])) {
+        return $part['text'];
+    }
+    if (isset($part['content'])) {
+        return consilium_part_text($part['content']);
+    }
+    $out = '';
+    foreach ($part as $item) {
+        if (is_string($item) || is_array($item)) {
+            $out .= consilium_part_text($item);
+        }
+    }
+    return $out;
+}
+
+function consilium_first_text($source, $keys)
+{
+    if (!is_array($source)) {
+        return '';
+    }
+    foreach ($keys as $key) {
+        if (!array_key_exists($key, $source) || $source[$key] === null) {
+            continue;
+        }
+        $text = consilium_part_text($source[$key]);
+        if (trim($text) !== '') {
+            return $text;
+        }
+    }
+    return '';
+}
+
+function consilium_message_text($message)
+{
+    return consilium_first_text($message, array('content', 'reasoning_content', 'reasoning', 'text'));
+}
+
+function consilium_chunk_text(array $chunk)
+{
+    if (!isset($chunk['choices'][0]) || !is_array($chunk['choices'][0])) {
+        return '';
+    }
+    $choice = $chunk['choices'][0];
+    if (isset($choice['delta']) && is_array($choice['delta'])) {
+        $text = consilium_first_text($choice['delta'], array('content', 'reasoning_content', 'reasoning', 'text'));
+        if ($text !== '') {
+            return $text;
+        }
+    }
+    if (isset($choice['message']) && is_array($choice['message'])) {
+        $text = consilium_message_text($choice['message']);
+        if ($text !== '') {
+            return $text;
+        }
+    }
+    return consilium_first_text($choice, array('text', 'content'));
+}
+
+function consilium_apply_sse_line($line, &$full, &$reasoning, $onDelta)
+{
+    $line = trim($line);
+    if ($line === '' || strpos($line, 'data:') !== 0) {
+        return;
+    }
+    $json = trim(substr($line, 5));
+    if ($json === '' || $json === '[DONE]') {
+        return;
+    }
+    $chunk = json_decode($json, true);
+    if (!is_array($chunk)) {
+        return;
+    }
+
+    $choice = (isset($chunk['choices'][0]) && is_array($chunk['choices'][0])) ? $chunk['choices'][0] : array();
+    $delta = (isset($choice['delta']) && is_array($choice['delta'])) ? $choice['delta'] : array();
+    $content = consilium_first_text($delta, array('content', 'text'));
+    $think = consilium_first_text($delta, array('reasoning_content', 'reasoning'));
+    if ($content === '' && $think === '') {
+        $content = consilium_chunk_text($chunk);
+    }
+
+    if ($think !== '') {
+        $reasoning .= $think;
+    }
+    if ($content !== '') {
+        $full .= $content;
+        if (is_callable($onDelta)) {
+            $onDelta($content);
+        }
+    }
+}
+
+function consilium_text_from_raw($raw)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return '';
+    }
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded)) {
+        return consilium_chunk_text($decoded);
+    }
+    $full = '';
+    $reasoning = '';
+    foreach (preg_split("/\r\n|\n|\r/", $raw) as $line) {
+        consilium_apply_sse_line($line, $full, $reasoning, null);
+    }
+    $full = trim($full);
+    return $full !== '' ? $full : trim($reasoning);
+}
+
+function consilium_request(array $agent, $system, $user, $stream, $onDelta = null)
 {
     $url = rtrim($agent['base_url'], '/') . '/chat/completions';
     $payload = array(
@@ -117,11 +236,13 @@ function consilium_chat(array $agent, $system, $user, $stream, $onDelta = null)
             array('role' => 'user', 'content' => $user),
         ),
         'temperature' => 0.7,
+        'max_tokens' => 4096,
         'stream' => (bool) $stream,
     );
 
     $buffer = '';
     $full = '';
+    $reasoning = '';
     $rawBody = '';
     $ch = curl_init($url);
     if ($ch === false) {
@@ -138,39 +259,20 @@ function consilium_chat(array $agent, $system, $user, $stream, $onDelta = null)
         CURLOPT_POST => true,
         CURLOPT_HTTPHEADER => $headers,
         CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-        CURLOPT_TIMEOUT => 120,
+        CURLOPT_TIMEOUT => 180,
         CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_ENCODING => '',
         CURLOPT_RETURNTRANSFER => !$stream,
     );
 
     if ($stream) {
-        $opts[CURLOPT_WRITEFUNCTION] = function ($ch, $data) use (&$buffer, &$full, &$rawBody, $onDelta) {
+        $opts[CURLOPT_WRITEFUNCTION] = function ($ch, $data) use (&$buffer, &$full, &$reasoning, &$rawBody, $onDelta) {
             $rawBody .= $data;
             $buffer .= $data;
             while (($pos = strpos($buffer, "\n")) !== false) {
-                $line = trim(substr($buffer, 0, $pos));
+                $line = substr($buffer, 0, $pos);
                 $buffer = substr($buffer, $pos + 1);
-                if ($line === '' || strpos($line, 'data:') !== 0) {
-                    continue;
-                }
-                $json = trim(substr($line, 5));
-                if ($json === '[DONE]') {
-                    continue;
-                }
-                $chunk = json_decode($json, true);
-                if (!is_array($chunk)) {
-                    continue;
-                }
-                $delta = '';
-                if (!empty($chunk['choices'][0]['delta']['content'])) {
-                    $delta = $chunk['choices'][0]['delta']['content'];
-                }
-                if ($delta !== '') {
-                    $full .= $delta;
-                    if (is_callable($onDelta)) {
-                        $onDelta($delta);
-                    }
-                }
+                consilium_apply_sse_line($line, $full, $reasoning, $onDelta);
             }
             return strlen($data);
         };
@@ -186,22 +288,57 @@ function consilium_chat(array $agent, $system, $user, $stream, $onDelta = null)
     if ($errno) {
         throw new RuntimeException('Ошибка запроса к агенту Timeweb: ' . $error);
     }
+    if ($status >= 400 && $stream) {
+        return consilium_request($agent, $system, $user, false, $onDelta);
+    }
     if ($status >= 400) {
         $hint = is_string($raw) ? $raw : $rawBody;
+        $hint = trim(preg_replace('/\s+/', ' ', (string) $hint));
+        if (strlen($hint) > 300) {
+            $hint = substr($hint, 0, 300) . '…';
+        }
         throw new RuntimeException('Агент Timeweb ответил HTTP ' . $status . ($hint ? ': ' . $hint : ''));
     }
 
     if ($stream) {
+        if ($buffer !== '') {
+            consilium_apply_sse_line($buffer, $full, $reasoning, $onDelta);
+        }
         $full = trim($full);
         if ($full === '') {
-            throw new RuntimeException('Пустой ответ агента Timeweb.');
+            $full = trim($reasoning);
+            if ($full !== '' && is_callable($onDelta)) {
+                $onDelta($full);
+            }
+        }
+        if ($full === '') {
+            $full = consilium_text_from_raw($rawBody);
         }
         return $full;
     }
 
-    $decoded = json_decode($raw, true);
-    if (!is_array($decoded) || empty($decoded['choices'][0]['message']['content'])) {
+    $text = consilium_text_from_raw(is_string($raw) ? $raw : '');
+    if ($text !== '' && is_callable($onDelta)) {
+        $onDelta($text);
+    }
+    return $text;
+}
+
+function consilium_chat(array $agent, $system, $user, $stream, $onDelta = null)
+{
+    $text = '';
+    if ($stream) {
+        $text = consilium_request($agent, $system, $user, true, $onDelta);
+    }
+    if (trim($text) === '') {
+        $text = consilium_request($agent, $system, $user, false, null);
+        $text = trim($text);
+        if ($text !== '' && $stream && is_callable($onDelta)) {
+            $onDelta($text);
+        }
+    }
+    if (trim($text) === '') {
         throw new RuntimeException('Пустой ответ агента Timeweb.');
     }
-    return trim($decoded['choices'][0]['message']['content']);
+    return trim($text);
 }
