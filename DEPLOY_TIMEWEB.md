@@ -88,7 +88,7 @@ agent_done
   ↓
 round_done
   ↓
-... × 5 rounds
+... × 3 rounds
   ↓
 synthesis_start
   ↓

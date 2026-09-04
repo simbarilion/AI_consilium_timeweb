@@ -3,69 +3,129 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AI Consilium — четыре AI-эксперта превращают идею веб-приложения в план реализации.">
-  <title>AI Consilium — консилиум AI-экспертов</title>
+  <meta name="description" content="Consilium — четыре IT-эксперта разбирают идею и собирают план реализации.">
+  <title>Consilium — разбор идеи</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="orb orb-a"></div><div class="orb orb-b"></div>
-
 <header class="topbar">
-  <a class="brand" href="#"><span class="brand-mark">✦</span><span>AI <b>Consilium</b></span></a>
-  <div class="topbar-right"><span class="live-dot"></span><span>4 эксперта онлайн</span><button class="icon-btn" id="themeHint" title="Яркий режим">☼</button></div>
+  <a class="brand" href="#">
+    <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    Consilium
+  </a>
+  <p class="topbar-meta">4 роли · 3 раунда · один план</p>
 </header>
 
 <main>
   <section class="hero">
-    <div class="eyebrow">TIMEWEB AI LAB · PRODUCT WORKSHOP</div>
-    <h1>Идея встречается<br><span>с четырьмя экспертами.</span></h1>
-    <p>Продукт, проект, backend и frontend-дизайн обсуждают вашу идею по очереди — и собирают единое решение.</p>
+    <div class="hero-copy">
+      <p class="eyebrow">Product workshop</p>
+      <h1>Четыре роли.<br>Один план.</h1>
+    </div>
+    <p class="lede">Продакт, проджект, backend и дизайнер разбирают идею как на воркшопе: по очереди, с критикой и с конкретным результатом — архитектура, MVP и следующие шаги.</p>
   </section>
 
-  <section class="workspace">
-    <div class="idea-card">
-      <div class="section-label"><span>01</span> ВАША ИДЕЯ</div>
-      <textarea id="idea" placeholder="Например: «Хочу веб-приложение, где маленькие команды смогут планировать путешествия, совместно собирать маршруты и делиться ими…»"></textarea>
-      <div class="idea-footer">
-        <div class="chips"><span>✦ 4 AI-агента</span><span>◷ 5 раундов</span><span>⌁ Итоговый PDF</span></div>
-        <button class="primary" id="startBtn"><span>Запустить консилиум</span><b>→</b></button>
+  <section class="studio" aria-label="Состав команды">
+    <article class="seat product">
+      <div class="seat-stage" aria-hidden="true">
+        <span class="note n1">JTBD</span>
+        <span class="note n2">MVP</span>
+        <span class="note n3">метрики</span>
+      </div>
+      <div class="seat-meta">
+        <b>Продакт</b>
+        <p>Ценность, аудитория, гипотезы</p>
+      </div>
+    </article>
+
+    <article class="seat project">
+      <div class="seat-stage" aria-hidden="true">
+        <div class="gantt">
+          <span style="width:78%"></span>
+          <span style="width:54%"></span>
+          <span style="width:36%"></span>
+        </div>
+        <div class="milestones"><i></i><i></i><i></i></div>
+      </div>
+      <div class="seat-meta">
+        <b>Проджект</b>
+        <p>Спринты, риски, зависимости</p>
+      </div>
+    </article>
+
+    <div class="brief">
+      <div class="brief-chrome">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brief-file">brief.md</span>
+      </div>
+      <textarea id="idea" placeholder="Опишите продукт. Например: сервис, где маленькие команды вместе собирают маршруты путешествий, делят бюджет и делятся поездкой."></textarea>
+      <div class="brief-foot">
+        <ul class="facts">
+          <li>4 роли</li>
+          <li>3 раунда</li>
+          <li>PDF на выходе</li>
+        </ul>
+        <button class="primary" id="startBtn" type="button"><span>Начать обсуждение</span></button>
       </div>
     </div>
 
-    <div class="agents">
-      <div class="section-label"><span>02</span> СОСТАВ КОНСИЛИУМА</div>
-      <div class="agent-grid">
-        <article class="agent product"><div class="avatar">P</div><div><h3>Продакт</h3><p>Ценность · аудитория · MVP</p></div><i>01</i></article>
-        <article class="agent project"><div class="avatar">J</div><div><h3>Проджект</h3><p>План · риски · сроки</p></div><i>02</i></article>
-        <article class="agent backend"><div class="avatar">B</div><div><h3>Backend</h3><p>API · данные · архитектура</p></div><i>03</i></article>
-        <article class="agent frontend"><div class="avatar">F</div><div><h3>Frontend / Design</h3><p>UX · UI · визуальный язык</p></div><i>04</i></article>
+    <article class="seat backend">
+      <div class="seat-stage terminal" aria-hidden="true">
+        <code><span class="k">POST</span> /api/plans</code>
+        <code><span class="k">schema</span> CarePlan</code>
+        <code><span class="c"># queue · auth · tests</span></code>
       </div>
-    </div>
+      <div class="seat-meta">
+        <b>Backend</b>
+        <p>API, данные, архитектура</p>
+      </div>
+    </article>
+
+    <article class="seat frontend">
+      <div class="seat-stage artboard" aria-hidden="true">
+        <span class="frame f1"></span>
+        <span class="frame f2"></span>
+        <span class="frame f3"></span>
+      </div>
+      <div class="seat-meta">
+        <b>Дизайн</b>
+        <p>Сценарий, UI, состояния</p>
+      </div>
+    </article>
   </section>
 
   <section class="consultation hidden" id="consultation">
     <div class="consult-head">
-      <div><div class="section-label"><span>03</span> ХОД КОНСИЛИУМА</div><h2>Эксперты обсуждают идею</h2></div>
-      <div class="round-status"><b id="roundNo">0</b><span>/ 5 раундов</span></div>
+      <div>
+        <p class="eyebrow">Обсуждение</p>
+        <h2>Команда разбирает идею</h2>
+      </div>
+      <div class="round-status"><b id="roundNo">0</b><span>/ 3</span></div>
     </div>
-    <div class="progress"><span id="progress"></span></div>
+    <div class="progress" aria-hidden="true"><span id="progress"></span></div>
     <div class="conversation" id="conversation"></div>
-    <button class="next-btn hidden" id="nextBtn">Следующий раунд <span>→</span></button>
   </section>
 
   <section class="final hidden" id="final">
     <div class="final-head">
-      <div><div class="section-label"><span>04</span> СИНТЕЗ КОНСИЛИУМА</div><h2>Вот что мы рекомендуем</h2><p>Единое решение, собранное из пяти раундов экспертного обсуждения.</p></div>
-      <button class="download" id="pdfBtn">⇩ Скачать PDF</button>
+      <div>
+        <p class="eyebrow">План</p>
+        <h2>Итоговое решение</h2>
+        <p class="final-note">Итог трёх раундов. Можно сохранить в PDF.</p>
+      </div>
+      <button class="download" id="pdfBtn" type="button">Скачать PDF</button>
     </div>
     <div class="decision" id="decision"></div>
   </section>
 </main>
 
-<footer>AI Consilium · концепт интерфейса для Timeweb <span>Собрано четырьмя экспертами</span></footer>
+<footer>
+  <span>Consilium</span>
+  <span>Воркшоп из четырёх ролей</span>
+</footer>
 <script src="app.js"></script>
 </body>
 </html>

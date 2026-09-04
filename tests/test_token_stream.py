@@ -104,6 +104,27 @@ class ConsiliumTokenStreamTests(unittest.TestCase):
         self.assertEqual(first_done["data"]["text"], "Привет, мир")
         self.assertEqual(first_done["data"]["agent"], "product")
 
+    def test_consilium_runs_three_rounds_then_synthesis(self):
+        with patch("backend.app.configured", return_value=True), \
+             patch("backend.app.stream_llm", side_effect=fake_stream), \
+             patch("backend.app.call_llm", return_value=json.dumps(FINAL_JSON)):
+            response = self.client.post(
+                "/api/consilium",
+                json={"idea": "Веб-приложение для совместных поездок"},
+            )
+            events = parse_sse(response.get_data(as_text=True))
+
+        starts = [item for item in events if item["event"] == "round_start"]
+        dones = [item for item in events if item["event"] == "agent_done"]
+        self.assertEqual(len(starts), 3)
+        self.assertEqual(starts[0]["data"]["total_rounds"], 3)
+        self.assertEqual(len(dones), 12)
+        self.assertEqual(starts[-1]["data"]["round"], 3)
+        names = [item["event"] for item in events]
+        self.assertLess(names.index("round_done"), names.index("synthesis_start"))
+        self.assertIn("synthesis_done", names)
+        self.assertIn("done", names)
+
 
 if __name__ == "__main__":
     unittest.main()

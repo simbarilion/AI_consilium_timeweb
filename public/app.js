@@ -88,7 +88,7 @@ function removeLoading() {
   $("#thinking")?.remove();
 }
 
-function setRound(round, total=5) {
+function setRound(round, total=3) {
   $("#roundNo").textContent = round;
   $("#progress").style.width = `${Math.round(round / total * 100)}%`;
 }
@@ -107,7 +107,7 @@ function listHtml(value) {
 function showFinal(d) {
   finalData = d || {};
   $("#progress").style.width = "100%";
-  $("#roundNo").textContent = "5";
+  $("#roundNo").textContent = "3";
 
   $("#decision").innerHTML = `
     <article class="decision-card wide"><span class="tag">РЕШЕНИЕ</span>
@@ -152,7 +152,8 @@ function handleSseEvent(eventName, payload) {
     removeLoading();
     const el = document.createElement("article");
     el.className = "message thinking synthesis-thinking";
-    el.innerHTML = `<div class="avatar product">✦</div><div><h3>AI Consilium</h3><small>Финальный синтез</small><p><span class="typing"><i></i><i></i><i></i></span> Собираем единое решение из 20 экспертных мнений…</p></div>`;
+    el.dataset.agent = "product";
+    el.innerHTML = `<div class="avatar product">C</div><div><h3>Consilium</h3><small>Собираем план</small><p><span class="typing"><i></i><i></i><i></i></span> Сводим двенадцать выступлений в одно решение…</p></div>`;
     $("#conversation").appendChild(el);
   }
   if (eventName === "synthesis_done") {
@@ -207,11 +208,11 @@ async function start() {
   busy = true;
   finalData = null;
   $("#startBtn").disabled = true;
-  $("#startBtn span").textContent = "Консилиум работает…";
+  $("#startBtn span").textContent = "Идёт обсуждение…";
   $("#consultation").classList.remove("hidden");
   $("#final").classList.add("hidden");
   liveText.clear();
-  $("#conversation").innerHTML = `<article class="message"><div class="avatar product">✦</div><div><h3>AI Consilium</h3><small>Подключаемся к консилиуму</small><p>Текст каждого эксперта появится здесь по мере генерации — токен за токеном, не дожидаясь конца ответа.</p></div></article>`;
+  $("#conversation").innerHTML = `<article class="message" data-agent="product"><div class="avatar product">C</div><div><h3>Consilium</h3><small>Обсуждение началось</small><p>Текст каждого эксперта появится здесь по мере генерации — токен за токеном.</p></div></article>`;
   $("#consultation").scrollIntoView({behavior:"smooth", block:"start"});
 
   try {
@@ -231,11 +232,11 @@ async function start() {
   } catch (error) {
     removeLoading();
     const box = $("#conversation");
-    box.innerHTML += `<article class="message"><div class="avatar backend">!</div><div><h3>Ошибка консилиума</h3><p>${escapeHtml(error.message)}</p><small>Проверьте .env и доступность LLM API.</small></div></article>`;
+    box.innerHTML += `<article class="message" data-agent="backend"><div class="avatar backend">!</div><div><h3>Обсуждение прервано</h3><p>${escapeHtml(error.message)}</p><small>Проверьте .env и доступность LLM API.</small></div></article>`;
   } finally {
     busy = false;
     $("#startBtn").disabled = false;
-    $("#startBtn span").textContent = "Запустить консилиум";
+    $("#startBtn span").textContent = "Начать обсуждение";
   }
 }
 
