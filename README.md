@@ -1,67 +1,33 @@
-# AI Consilium — Full Stack + SSE
+# AI Consilium
 
-Готовый Timeweb-oriented сервис: Flask backend + HTML/CSS/JS frontend.
+Четыре IT-эксперта разбирают идею в 3 раундах и собирают план. Интерфейс тот же, бэкенд для бесплатного хостинга Timeweb — **PHP**.
 
-## SSE
+Flask остаётся только для локальной разработки. На **timeweb.com → Хостинг для сайта** Python/Flask не ставится.
 
-`POST /api/consilium` возвращает `text/event-stream`.
+## Бесплатная публикация (PHP)
 
-Frontend читает HTTP response stream и отображает:
-- запуск консилиума;
-- начало каждого раунда;
-- карточку текущего агента;
-- токены ответа по мере генерации;
-- завершение ответа агента;
-- завершение раунда;
-- финальный synthesis;
-- завершение консилиума.
+1. В [Timeweb Cloud](https://timeweb.cloud) создайте **четыре агента** (продакт, проджект, backend, дизайн).
+2. У каждого агента скопируйте:
+   - **Интеграции → Скопировать OpenAI URL**
+   - **Управление → Доступ по API** (токен агента, не «API и Terraform»)
+3. Скопируйте `config/config.example.php` в `config/config.php` и вставьте `base_url` + `token` четырёх агентов. Председатель можно не заполнять — синтез пойдёт через продакт-агента.
+4. Залейте в `public_html` файлы:
+   - `index.php`, `.htaccess`
+   - папки `api/`, `config/`, `public/`
+5. Откройте сайт и проверьте `https://ваш-домен/api/health` — должно быть `"llm_configured": true`.
 
-В консилиуме 12 экспертных LLM-вызовов (4 агента × 3 раунда) + 1 synthesis-вызов.
+Токены только в `config/config.php` на сервере. Этот файл в git не попадает.
 
-## Почему не EventSource
-
-Native `EventSource` хорошо подходит для SSE-подписки, но здесь пользователю
-нужно отправить `idea` в POST body. Поэтому используется `fetch()` + чтение
-`ReadableStream` и тот же стандартный формат SSE.
-
-## Настройка
+## Локально (Flask, по желанию)
 
 ```bash
 copy .env.example .env
-```
-
-Заполнить:
-
-```text
-LLM_BASE_URL=https://YOUR_LLM_BASE_URL/v1
-LLM_TOKEN=YOUR_LLM_TOKEN_HERE
-LLM_MODEL=YOUR_MODEL_NAME
-```
-
-Токен хранится только на backend.
-
-## Запуск
-
-```bash
 pip install -r backend/requirements.txt
 python -m backend.app
 ```
 
-Production:
+## Протокол
 
-```bash
-gunicorn --bind 0.0.0.0:$PORT --worker-class gevent --workers 1 backend.app:app
-```
+`POST /api/consilium` — SSE. События: `start` → `round_start` → `agent_start` → `agent_token`* → `agent_done` → `round_done` → `synthesis_start` → `synthesis_done` → `done`.
 
-Подробный Timeweb deployment и настройки Nginx для SSE находятся в
-`DEPLOY_TIMEWEB.md`.
-
-## Streaming
-
-События консилиума приходят по SSE. Текст каждого специалиста стримится
-токенами: backend читает OpenAI Responses API с `stream=True` и шлёт
-`agent_token` до тех пор, пока модель генерирует ответ. После этого
-приходит `agent_done` с полным текстом.
-
-Финальный синтез по-прежнему приходит целиком (`synthesis_done`), потому что
-это структурированный JSON для карточек решения.
+12 вызовов экспертов (4×3) + 1 синтез.

@@ -232,7 +232,7 @@ async function start() {
   } catch (error) {
     removeLoading();
     const box = $("#conversation");
-    box.innerHTML += `<article class="message" data-agent="backend"><div class="avatar backend">!</div><div><h3>Обсуждение прервано</h3><p>${escapeHtml(error.message)}</p><small>Проверьте .env и доступность LLM API.</small></div></article>`;
+    box.innerHTML += `<article class="message" data-agent="backend"><div class="avatar backend">!</div><div><h3>Обсуждение прервано</h3><p>${escapeHtml(error.message)}</p><small>Проверьте config/config.php и токены агентов Timeweb.</small></div></article>`;
   } finally {
     busy = false;
     $("#startBtn").disabled = false;

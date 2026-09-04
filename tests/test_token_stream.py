@@ -18,7 +18,7 @@ FINAL_JSON = {
 }
 
 
-def fake_stream(_system: str, _user: str):
+def fake_stream(_system: str, _user: str, *_args, **_kwargs):
     yield "Привет, "
     yield "мир"
 
@@ -60,6 +60,10 @@ class ExtractTextDeltaTests(unittest.TestCase):
     def test_empty_delta_is_ignored(self):
         event = SimpleNamespace(type="response.output_text.delta", delta="")
         self.assertEqual(extract_text_delta(event), "")
+
+    def test_reads_chat_completions_stream_delta(self):
+        event = SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="план"))])
+        self.assertEqual(extract_text_delta(event), "план")
 
     def test_sse_helper_keeps_event_name_and_json_payload(self):
         payload = sse("agent_token", {"agent": "product", "delta": "Hi"})

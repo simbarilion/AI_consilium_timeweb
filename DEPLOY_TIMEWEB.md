@@ -1,6 +1,19 @@
-# AI Consilium — SSE deployment on Timeweb
+# AI Consilium — публикация на Timeweb
 
-## 1. Timeweb Cloud App Platform
+## 0. Бесплатный путь: PHP на «Хостинг для сайта»
+
+Flask на timeweb.com не ставится. Для задания как у медицинского PHP-примера залейте PHP-версию.
+
+1. Создайте четыре агента в Timeweb Cloud → ИИ-сервисы → Агенты.
+2. Скопируйте `config/config.example.php` → `config/config.php` и вставьте OpenAI URL + токен **агента** (не Terraform).
+3. В файловый менеджер `public_html` загрузите: `index.php`, `.htaccess`, `api/`, `config/`, `public/`.
+4. Проверьте `https://ваш-домен/api/health` — `"llm_configured": true`.
+
+Бесплатно у Timeweb: **10 дней** теста хостинга. Постоянного бесплатного тарифа нет.
+
+Токены не кладите в JS и не коммитьте `config/config.php`.
+
+## 1. Timeweb Cloud App Platform (Flask, не для бесплатного хостинга)
 
 Recommended command:
 

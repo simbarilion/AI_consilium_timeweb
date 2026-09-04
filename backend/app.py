@@ -34,67 +34,150 @@ ROUND_TOPICS = [
     "Раунд 3: Финальная позиция: обсуждение рисков и конкретных рекомендаций",
 ]
 
-def configured() -> bool:
-    return (
-        bool(LLM_TOKEN)
-        and not LLM_TOKEN.startswith("YOUR_")
-        and bool(LLM_BASE_URL)
-        and "YOUR_LLM_BASE_URL" not in LLM_BASE_URL
-        and bool(LLM_MODEL)
-        and not LLM_MODEL.startswith("YOUR_")
-    )
-
 def extract_text_delta(event: Any) -> str:
-    """Достаёт текстовый токен из события OpenAI Responses stream."""
+    """Достаёт текстовый токен из Responses API или Chat Completions stream."""
     if event is None:
         return ""
+
     if isinstance(event, dict):
         event_type = event.get("type") or ""
         delta = event.get("delta") or ""
+        choices = event.get("choices")
     else:
         event_type = getattr(event, "type", None) or ""
         delta = getattr(event, "delta", None) or ""
+        choices = getattr(event, "choices", None)
+
     if event_type == "response.output_text.delta" and isinstance(delta, str):
         return delta
+
+    if choices:
+        choice0 = choices[0]
+        part = getattr(choice0, "delta", None)
+        if part is None and isinstance(choice0, dict):
+            part = choice0.get("delta")
+        content = getattr(part, "content", None) if part is not None and not isinstance(part, dict) else None
+        if content is None and isinstance(part, dict):
+            content = part.get("content")
+        if isinstance(content, str):
+            return content
     return ""
 
 
-def _llm_client() -> OpenAI:
-    return OpenAI(
-        api_key=LLM_TOKEN,
-        base_url=LLM_BASE_URL,
+def _env(name: str) -> str:
+    return (os.getenv(name) or "").strip()
+
+
+def _valid_secret(value: str) -> bool:
+    return bool(value) and not value.startswith("YOUR_") and "PUT_" not in value
+
+
+def agent_config(agent: str) -> dict[str, str]:
+    key = agent
+    if agent == "chair" and not (
+        _valid_secret(_env("CHAIR_TOKEN")) and _valid_secret(_env("CHAIR_BASE_URL"))
+    ):
+        key = "product"
+    prefix = key.upper()
+    url = _env(f"{prefix}_BASE_URL")
+    token = _env(f"{prefix}_TOKEN")
+    model = _env(f"{prefix}_MODEL") or _env("LLM_MODEL") or "gpt-4"
+    if _valid_secret(url) and _valid_secret(token) and "YOUR_LLM_BASE_URL" not in url:
+        return {"base_url": url.rstrip("/"), "api_key": token, "model": model, "key": key}
+    return {
+        "base_url": LLM_BASE_URL.rstrip("/"),
+        "api_key": LLM_TOKEN,
+        "model": LLM_MODEL,
+        "key": key,
+    }
+
+
+def timeweb_agents_ready() -> bool:
+    return all(
+        _valid_secret(_env(f"{key.upper()}_BASE_URL")) and _valid_secret(_env(f"{key.upper()}_TOKEN"))
+        for key, _n, _r in AGENTS
+    )
+
+
+def configured() -> bool:
+    if timeweb_agents_ready():
+        return True
+    return (
+        _valid_secret(LLM_TOKEN)
+        and bool(LLM_BASE_URL)
+        and "YOUR_LLM_BASE_URL" not in LLM_BASE_URL
+        and _valid_secret(LLM_MODEL)
+    )
+
+
+def _uses_chat(base_url: str) -> bool:
+    return "cloud-ai/agents" in base_url or "agent.timeweb.cloud" in base_url
+
+
+def _llm_client(agent: str = "product") -> tuple[OpenAI, dict[str, str]]:
+    cfg = agent_config(agent)
+    client = OpenAI(
+        api_key=cfg["api_key"],
+        base_url=cfg["base_url"],
         timeout=120.0,
         max_retries=2,
     )
+    return client, cfg
 
 
-def stream_llm(system: str, user: str) -> Generator[str, None, None]:
+def stream_llm(system: str, user: str, agent: str = "product") -> Generator[str, None, None]:
     if not configured():
         raise RuntimeError(
-            "LLM не настроен. Заполните LLM_BASE_URL, LLM_TOKEN и LLM_MODEL в .env."
+            "Агенты не настроены. Заполните PRODUCT/PROJECT/BACKEND/FRONTEND "
+            "(BASE_URL и TOKEN) или LLM_BASE_URL/LLM_TOKEN/LLM_MODEL в .env."
         )
 
-    stream = _llm_client().responses.create(
-        model=LLM_MODEL,
-        instructions=system,
-        input=user,
-        temperature=0.7,
-        stream=True,
-    )
+    client, cfg = _llm_client(agent)
+    if _uses_chat(cfg["base_url"]):
+        stream = client.chat.completions.create(
+            model=cfg["model"],
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.7,
+            stream=True,
+        )
+    else:
+        stream = client.responses.create(
+            model=cfg["model"],
+            instructions=system,
+            input=user,
+            temperature=0.7,
+            stream=True,
+        )
     for event in stream:
         delta = extract_text_delta(event)
         if delta:
             yield delta
 
 
-def call_llm(system: str, user: str) -> str:
+def call_llm(system: str, user: str, agent: str = "chair") -> str:
     if not configured():
         raise RuntimeError(
-            "LLM не настроен. Заполните LLM_BASE_URL, LLM_TOKEN и LLM_MODEL в .env."
+            "Агенты не настроены. Заполните PRODUCT/PROJECT/BACKEND/FRONTEND "
+            "(BASE_URL и TOKEN) или LLM_BASE_URL/LLM_TOKEN/LLM_MODEL в .env."
         )
 
-    response = _llm_client().responses.create(
-        model=LLM_MODEL,
+    client, cfg = _llm_client(agent)
+    if _uses_chat(cfg["base_url"]):
+        response = client.chat.completions.create(
+            model=cfg["model"],
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.7,
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    response = client.responses.create(
+        model=cfg["model"],
         instructions=system,
         input=user,
         temperature=0.7,
@@ -121,7 +204,11 @@ def sse(event: str, payload: dict[str, Any]) -> str:
 
 @app.get("/api/health")
 def health():
-    return jsonify({"status": "ok", "llm_configured": configured()})
+    return jsonify({
+        "status": "ok",
+        "llm_configured": configured(),
+        "mode": "timeweb-agents" if timeweb_agents_ready() else "gateway",
+    })
 
 @app.post("/api/consilium")
 def consilium():
@@ -178,7 +265,7 @@ def consilium():
 
                     started = time.monotonic()
                     chunks: list[str] = []
-                    for delta in stream_llm(role, prompt):
+                    for delta in stream_llm(role, prompt, key):
                         chunks.append(delta)
                         yield sse("agent_token", {
                             "round": round_no,
@@ -232,6 +319,7 @@ def consilium():
                 "Ты стратегический руководитель продукта и технический архитектор. "
                 "Синтезируй мнения команды в практичное решение.",
                 synthesis_prompt,
+                "chair",
             ))
 
             yield sse("synthesis_done", {"final": final})
